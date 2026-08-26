@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy import delete, insert, or_, select
@@ -99,7 +99,7 @@ def enroll_course(current_user_id, course_id):
         if existing:
             return jsonify({"message": "Already enrolled in this course", "enrolled": True}), 200
 
-        enrolled_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+        enrolled_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
         conn.execute(
             insert(user_courses).values(
                 user_id=str(current_user_id),
@@ -199,7 +199,7 @@ def toggle_favorite_course(current_user_id, course_id):
             return jsonify({"message": "Removed from favorites", "favorited": False}), 200
         else:
             # Favorite
-            created_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+            created_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
             ins_stmt = insert(user_favorites).values(
                 user_id=str(current_user_id),
                 course_id=str(course_id),
