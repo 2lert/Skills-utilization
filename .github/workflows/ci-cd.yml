@@ -100,7 +100,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
 
       - name: Scan image for vulnerabilities (trivy)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ env.IMAGE_NAME }}:latest
           severity: "CRITICAL,HIGH"
