@@ -1,9 +1,11 @@
 import datetime
 import re
 from functools import wraps
+
 import jwt
-from flask import request, jsonify
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask import jsonify, request
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from config import Config
 
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"

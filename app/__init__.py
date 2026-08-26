@@ -1,7 +1,9 @@
 from flask import Flask, jsonify
-from config import Config
+
 from app.db import engine
 from app.models import metadata
+from config import Config
+
 
 def create_app():
     app = Flask(__name__, template_folder="../templates", static_folder="../static")

@@ -1,12 +1,13 @@
 import uuid
+
 from sqlalchemy import (
-    MetaData,
-    Table,
     Column,
-    Integer,
-    String,
-    Text,
     ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
     UniqueConstraint,
 )
 

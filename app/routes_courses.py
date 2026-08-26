@@ -1,9 +1,11 @@
 from datetime import datetime
-from flask import Blueprint, request, jsonify
-from sqlalchemy import select, or_, insert, delete
-from app.db import engine
-from app.models import courses, skills, user_skills, user_courses, user_favorites
+
+from flask import Blueprint, jsonify, request
+from sqlalchemy import delete, insert, or_, select
+
 from app.auth import token_required
+from app.db import engine
+from app.models import courses, skills, user_courses, user_favorites, user_skills
 
 courses_bp = Blueprint("courses", __name__)
 

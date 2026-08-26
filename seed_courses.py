@@ -1,6 +1,8 @@
 import json
+
 from app.db import engine
 from app.models import courses, skills
+
 
 def seed_database():
     with open("courses.json", "r") as f:

@@ -1,17 +1,18 @@
-from flask import Blueprint, request, jsonify
-from sqlalchemy import select, insert, delete
-from app.db import engine
-from app.models import users, skills, user_skills
+from flask import Blueprint, jsonify, request
+from sqlalchemy import delete, insert, select
+
 from app.auth import (
-    hash_password,
-    verify_password,
     generate_jwt_token,
+    hash_password,
     token_required,
+    validate_age,
     validate_email,
     validate_password,
     validate_phone,
-    validate_age,
+    verify_password,
 )
+from app.db import engine
+from app.models import skills, user_skills, users
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -134,9 +135,10 @@ def login():
     }), 200
 
 
-from app.models import users, skills, user_skills, user_courses, courses, user_favorites
-
 from sqlalchemy import update
+
+from app.models import courses, user_courses, user_favorites
+
 
 @auth_bp.route("/api/users/me", methods=["GET"])
 @token_required
