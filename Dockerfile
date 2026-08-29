@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # curl -> talk to Vault's HTTP API from the entrypoint (mounted in at runtime)
 # netcat -> wait for postgres to be reachable before running migrations
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     netcat-openbsd \
