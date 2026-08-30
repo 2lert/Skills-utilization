@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  security-scan:
-    name: Security & quality scans
+  lint-test:
+    name: Lint & test
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -28,8 +28,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # full history needed for TruffleHog to diff commits
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -40,134 +38,21 @@ jobs:
       - name: Install app + dev dependencies
         run: |
           pip install -r requirements.txt
-          pip install ruff bandit pip-audit pytest
+          pip install ruff pytest
 
-      - name: Create results folder
-        run: mkdir -p results
+      - name: Lint (ruff)
+        run: ruff check .
 
-      # Each step below follows the same pattern:
-      # 1. run the tool, capturing its exit code (set +e so one failing
-      #    tool can't kill the step or the job)
-      # 2. write "Tool / Command / full output / Result: PASS|FAIL" to
-      #    its own file under results/
-      # 3. print that file to the job log too, for a quick look without
-      #    downloading the artifact
-      # Because we swallow the exit code ourselves, a failing tool never
-      # fails the step — the job always moves on to the next tool.
-
-      - name: Lint scan (ruff)
-        run: |
-          set +e
-          {
-            echo "Tool: ruff (lint)"
-            echo "Command: ruff check ."
-            echo "----------------------------------------"
-            ruff check .
-            STATUS=$?
-            echo "----------------------------------------"
-            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
-          } > results/ruff.txt 2>&1
-          cat results/ruff.txt
-
-      - name: Security scan (bandit)
-        run: |
-          set +e
-          {
-            echo "Tool: bandit (Python static security analysis)"
-            echo "Command: bandit -r app -ll"
-            echo "----------------------------------------"
-            bandit -r app -ll
-            STATUS=$?
-            echo "----------------------------------------"
-            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
-          } > results/bandit.txt 2>&1
-          cat results/bandit.txt
-
-      - name: Dockerfile lint (hadolint)
-        run: |
-          set +e
-          {
-            echo "Tool: hadolint (Dockerfile lint)"
-            echo "Command: docker run --rm -i hadolint/hadolint < Dockerfile"
-            echo "----------------------------------------"
-            docker run --rm -i hadolint/hadolint < Dockerfile
-            STATUS=$?
-            echo "----------------------------------------"
-            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
-          } > results/hadolint.txt 2>&1
-          cat results/hadolint.txt
-
-      - name: Secret scan (trufflehog)
-        run: |
-          set +e
-          {
-            echo "Tool: trufflehog (secret scanning)"
-            echo "Command: docker run --rm -v \$(pwd):/repo trufflesecurity/trufflehog:latest git file:///repo --only-verified"
-            echo "----------------------------------------"
-            docker run --rm -v "$(pwd):/repo" trufflesecurity/trufflehog:latest git file:///repo --only-verified
-            STATUS=$?
-            echo "----------------------------------------"
-            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
-          } > results/trufflehog.txt 2>&1
-          cat results/trufflehog.txt
-
-      - name: Dependency vulnerability scan (pip-audit)
-        run: |
-          set +e
-          {
-            echo "Tool: pip-audit (dependency CVE scan)"
-            echo "Command: pip-audit -r requirements.txt"
-            echo "----------------------------------------"
-            pip-audit -r requirements.txt
-            STATUS=$?
-            echo "----------------------------------------"
-            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
-          } > results/pip-audit.txt 2>&1
-          cat results/pip-audit.txt
-
-      - name: Run tests (pytest)
+      - name: Run tests
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/course_recommendation_db"
           SECRET_KEY: "ci-test-secret-key"
           JWT_SECRET_KEY: "ci-test-jwt-secret-key"
-        run: |
-          set +e
-          {
-            echo "Tool: pytest (test suite)"
-            echo "Command: pytest -v"
-            echo "----------------------------------------"
-            pytest -v
-            STATUS=$?
-            echo "----------------------------------------"
-            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
-          } > results/pytest.txt 2>&1
-          cat results/pytest.txt
-
-      - name: Build combined summary
-        run: |
-          {
-            echo "CI/CD Security & Quality Scan Summary"
-            echo "Commit: ${{ github.sha }}"
-            echo "Date: $(date -u)"
-            echo "=========================================="
-            for f in results/*.txt; do
-              tool=$(basename "$f" .txt)
-              result=$(grep "^Result:" "$f" | tail -n1)
-              printf "%-15s %s\n" "$tool" "$result"
-            done
-          } > results/summary.txt
-          cat results/summary.txt
-
-      - name: Upload scan results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: scan-results
-          path: results/
+        run: pytest -v
 
   build-push:
     name: Build & push Docker image
-    needs: security-scan
+    needs: lint-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

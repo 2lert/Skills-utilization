@@ -1,0 +1,101 @@
+name: Security Scans
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security scans (bandit, hadolint, trufflehog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history needed for TruffleHog to diff commits
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install bandit
+        run: pip install bandit
+
+      - name: Create results folder
+        run: mkdir -p results
+
+      # Each step follows the same pattern: run the tool, capture its exit
+      # code (set +e so one failing tool can't kill the step or the job),
+      # write "Tool / Command / full output / Result: PASS|FAIL" to its own
+      # file under results/, and print it to the job log too. Because the
+      # exit code is swallowed ourselves, a failing tool never fails the
+      # step — the job always moves on to the next tool.
+
+      - name: Security scan (bandit)
+        run: |
+          set +e
+          {
+            echo "Tool: bandit (Python static security analysis)"
+            echo "Command: bandit -r app -ll"
+            echo "----------------------------------------"
+            bandit -r app -ll
+            STATUS=$?
+            echo "----------------------------------------"
+            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
+          } > results/bandit.txt 2>&1
+          cat results/bandit.txt
+
+      - name: Dockerfile lint (hadolint)
+        run: |
+          set +e
+          {
+            echo "Tool: hadolint (Dockerfile lint)"
+            echo "Command: docker run --rm -i hadolint/hadolint < Dockerfile"
+            echo "----------------------------------------"
+            docker run --rm -i hadolint/hadolint < Dockerfile
+            STATUS=$?
+            echo "----------------------------------------"
+            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
+          } > results/hadolint.txt 2>&1
+          cat results/hadolint.txt
+
+      - name: Secret scan (trufflehog)
+        run: |
+          set +e
+          {
+            echo "Tool: trufflehog (secret scanning)"
+            echo "Command: docker run --rm -v \$(pwd):/repo trufflesecurity/trufflehog:latest git file:///repo --only-verified"
+            echo "----------------------------------------"
+            docker run --rm -v "$(pwd):/repo" trufflesecurity/trufflehog:latest git file:///repo --only-verified
+            STATUS=$?
+            echo "----------------------------------------"
+            if [ $STATUS -eq 0 ]; then echo "Result: PASS"; else echo "Result: FAIL"; fi
+          } > results/trufflehog.txt 2>&1
+          cat results/trufflehog.txt
+
+      - name: Build combined summary
+        run: |
+          {
+            echo "Security Scan Summary"
+            echo "Commit: ${{ github.sha }}"
+            echo "Date: $(date -u)"
+            echo "=========================================="
+            for f in results/*.txt; do
+              tool=$(basename "$f" .txt)
+              result=$(grep "^Result:" "$f" | tail -n1)
+              printf "%-15s %s\n" "$tool" "$result"
+            done
+          } > results/summary.txt
+          cat results/summary.txt
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: results/
